@@ -1,0 +1,17 @@
+# Entorno virtual de Python
+venv/
+__pycache__/
+*.pyc
+
+# Dependencias de Node (Lighthouse CI)
+node_modules/
+
+# Resultados de Lighthouse CI
+.lighthouseci/
+
+# Reportes de Playwright
+reports/playwright-report/
+reports/*.zip
+
+# Archivos de entorno / secretos
+.env

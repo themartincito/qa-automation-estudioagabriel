@@ -1,0 +1,20 @@
+{
+  "name": "qa-automation-estudioagabriel",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "lighthouse:desktop": "lhci collect --config=lighthouserc.desktop.js",
+    "lighthouse:mobile": "lhci collect --config=lighthouserc.mobile.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@lhci/cli": "^0.15.1"
+  }
+}
