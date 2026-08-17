@@ -17,18 +17,22 @@ El sitio tardaba en cargar y no había forma sistemática de saber por qué. El 
 
 | # | Hallazgo | Severidad | Estado |
 |---|---|---|---|
-| 1 | Imagen de 1.92 MB sin optimizar = 84% del peso total de la página | Alto (performance) | ✅ Diagnosticado y fix aplicado |
+| 1 | Imagen de 1.92 MB sin optimizar = 84% del peso total de la página | Alto (performance) | ✅ Diagnosticado, fix aplicado y **verificado en producción** |
 | 2 | DNS del dominio falla (SERVFAIL) contra resolvers públicos (Google/Cloudflare) — el sitio es inalcanzable para una porción de usuarios | Crítico (disponibilidad) | 🔴 Detectado y trackeado (requiere acción del proveedor de hosting) |
+| 3 | El LCP real (título del hero) está bloqueado por 2 requests a Google Fonts antes de poder pintar texto | Medio (performance) | 🟡 Detectado durante la verificación del fix #1, documentado como próximo paso |
 
-Detalle completo, con evidencia y métricas antes/después: [`reports/root-cause-analysis.md`](reports/root-cause-analysis.md)
+Detalle completo, con evidencia y métricas antes/después medidas contra el sitio real en producción: [`reports/root-cause-analysis.md`](reports/root-cause-analysis.md)
 
-**Resultado del fix de la imagen:**
+**Resultado del fix de la imagen (medido en vivo, no estimado):**
 
-| | Antes | Después |
-|---|---|---|
-| Peso de la imagen principal | 1,920 KB (PNG) | 33 KB (WebP) |
-| Peso total de la página | 2,275 KB | ~415 KB (estimado) |
-| Ahorro | — | **98.3%** en la imagen, ~82% en el total de la página |
+| | Antes | Después | Cambio |
+|---|---|---|---|
+| Peso de la imagen principal | 1,920 KB (PNG) | 33 KB (WebP) | **−98.3%** |
+| Peso total de la página (desktop) | 2,275 KB | **387 KB** | **−83%** |
+| Peso total de la página (mobile) | 2,275 KB | **354 KB** | **−84%** |
+| Test de regresión `test_page_weight_budget` | ❌ FAILED | ✅ PASSED | — |
+
+**Hallazgo honesto:** el peso de página bajó ~83%, pero el *Largest Contentful Paint* no mejoró — investigando por qué, encontré que el elemento LCP real nunca fue esa imagen, sino el título del hero, bloqueado por la carga de Google Fonts. Ese es el hallazgo #3, y es el que explica el tiempo de carga percibido. Documentado con evidencia en el reporte completo — no todo fix "obvio" mueve la métrica que uno espera, y demostrarlo con datos es justamente el trabajo de QA.
 
 ## Stack
 

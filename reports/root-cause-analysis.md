@@ -75,7 +75,7 @@ Esa sola imagen es el **84% del peso total de la página** (1920 KB de 2275 KB).
 
 ---
 
-## Fix aplicado
+## Fix aplicado y verificado en producción (17/08/2026)
 
 Se identificó que el código fuente real del sitio en producción es `preview/index.html` + `preview/abogada.png` (confirmado byte a byte contra el HTML e imagen servidos en vivo).
 
@@ -83,10 +83,41 @@ Se identificó que el código fuente real del sitio en producción es `preview/i
    - `abogada.webp` — 32.5 KB (**98.3% más liviana**)
    - `abogada.jpg` — 60.6 KB (**96.9% más liviana**, fallback para navegadores sin soporte WebP)
 2. Se actualizó `preview/index.html` para usar `<picture>` con WebP + fallback JPEG, más `loading="lazy"` y atributos `width`/`height` explícitos (evita layout shift).
+3. Se subieron los 3 archivos al servidor vía cPanel File Manager (acción manual del propietario del sitio, confirmada por captura de pantalla) y se verificó en vivo que `abogada.webp` y `abogada.jpg` responden 200 OK y que el HTML servido ya referencia la versión optimizada.
 
-**Pendiente (requiere acción manual del propietario del sitio):** subir `preview/abogada.webp`, `preview/abogada.jpg` y el `preview/index.html` actualizado al servidor vía FTP/cPanel, reemplazando los archivos actuales en el mismo directorio donde hoy vive `abogada.png`. No se realizó esta subida de forma automática por política de seguridad (no se usan credenciales de terceros para autenticarse en sistemas, ni siquiera con autorización explícita).
+### Resultado medido (Lighthouse, antes vs. después del deploy)
 
-**Impacto esperado post-deploy:** peso de página baja de ~2275 KB a ~415 KB (imagen optimizada + resto de recursos sin cambios), el test `test_page_weight_budget` debería pasar, y LCP/Speed Index deberían mejorar sustancialmente, especialmente en mobile.
+| Métrica | Antes | Después | Cambio |
+|---|---|---|---|
+| Peso total de página (desktop) | 2,275 KB | **387 KB** | **−83%** |
+| Peso total de página (mobile) | 2,275 KB | **354 KB** | **−84%** |
+| Performance score (desktop) | 74/100 | 74/100 | sin cambio |
+| Performance score (mobile) | 71/100 | 70/100 | sin cambio |
+| First Contentful Paint (desktop) | 2.2s | 2.2s | sin cambio |
+| Largest Contentful Paint (desktop) | 2.5s | 2.5s | sin cambio |
+| Speed Index (desktop) | 2.3s | 2.3s | sin cambio |
+
+**Test de regresión (`test_page_weight_budget`):** pasó de `FAILED` (2404 KB, presupuesto 800 KB) a `PASSED` en ambos dominios. Evidencia objetiva de que el fix se aplicó correctamente.
+
+### Por qué el LCP no mejoró (hallazgo honesto, no esperado)
+
+El peso de página bajó drásticamente, pero el **Largest Contentful Paint no se movió**. Investigando el motivo: el elemento LCP real del sitio **nunca fue la imagen `abogada.png`** — es el `<h1>` del hero ("Concursos y Quiebras"), ubicado muy arriba en la página. La imagen pesada estaba en la sección "Sobre mí", mucho más abajo, fuera del viewport inicial. Por eso el fix reduce drásticamente el ancho de banda transferido (importante para mobile/datos móviles) pero no mueve la métrica de percepción de velocidad de carga inicial.
+
+## Hallazgo 3: render-blocking de Google Fonts retrasa el LCP real
+
+Con el audit `render-blocking-resources` del reporte "después" se identificó la causa real del retraso en el `<h1>`:
+
+```
+Render-blocking: https://fonts.googleapis.com/css2?family=Cormorant+Garamond...&family=Montserrat...
+```
+
+El navegador no puede pintar el texto del `<h1>` hasta:
+1. Descargar el CSS de Google Fonts (`fonts.googleapis.com`)
+2. Ese CSS le indica descargar los archivos de fuente reales (`fonts.gstatic.com`, formato `.woff2`)
+
+Son 2 round-trips a dominios de terceros antes de poder mostrar el título principal — esto explica el FCP/LCP de ~2.2-2.5s pese a que el servidor responde en 230ms.
+
+**No se aplicó fix para este hallazgo en este ciclo** (requiere decidir estrategia: `font-display: swap`, `<link rel="preconnect">` a los dominios de Google Fonts, o self-hosting de las fuentes). Queda documentado como próximo paso.
 
 ---
 
