@@ -72,7 +72,7 @@ tests/
 
 ```bash
 # 1. Clonar y entrar al proyecto
-git clone https://github.com/<tu-usuario>/qa-automation-estudioagabriel.git
+git clone https://github.com/themartincito/qa-automation-estudioagabriel.git
 cd qa-automation-estudioagabriel
 
 # 2. Crear entorno virtual e instalar dependencias
