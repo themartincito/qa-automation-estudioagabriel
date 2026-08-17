@@ -4,6 +4,13 @@ Proyecto de QA automatizado end-to-end sobre un sitio de producción real (estud
 
 > Este no es un demo sobre un sitio de prueba: es un caso real, con un cliente real, un bug real, y un fix real.
 
+**En números:**
+
+- 📉 **−83% de peso de página** (2,275 KB → 387 KB), medido en producción, no estimado
+- 🐛 **2 fixes reales** aplicados y verificados con Lighthouse antes/después
+- 🔴 **1 bug crítico de infraestructura** encontrado (DNS) y trackeado como test automatizado
+- ✅ **18 tests** parametrizados sobre 2 dominios (Playwright + pytest)
+
 ## El problema
 
 El sitio tardaba en cargar y no había forma sistemática de saber por qué. El objetivo fue construir una suite de QA automatizado que permitiera:
@@ -33,7 +40,14 @@ Detalle completo, con evidencia y métricas antes/después medidas contra el sit
 | Peso total de la página (mobile) | 2,275 KB | **354 KB** | **−84%** |
 | Test de regresión `test_page_weight_budget` | ❌ FAILED | ✅ PASSED | — |
 
-**Hallazgo honesto:** el peso de página bajó ~83%, pero el *Largest Contentful Paint* no mejoró — investigando por qué, encontré que el elemento LCP real nunca fue esa imagen, sino el título del hero, bloqueado por la carga de Google Fonts. Ese es el hallazgo #3, y es el que explica el tiempo de carga percibido. Documentado con evidencia en el reporte completo — no todo fix "obvio" mueve la métrica que uno espera, y demostrarlo con datos es justamente el trabajo de QA.
+**La cadena de hallazgos honesta (así fue en la práctica, no en retrospectiva prolija):**
+
+1. El peso de página bajó ~83% con el fix de la imagen, pero el *Largest Contentful Paint* casi no se movió.
+2. Investigando por qué, encontré que el elemento LCP real nunca fue esa imagen — es el título del hero, y estaba bloqueado por la carga síncrona de Google Fonts (Hallazgo #3).
+3. Apliqué el fix de fuentes (patrón preload+swap) y lo verifiqué: el render-blocking desapareció por completo, pero el LCP **tampoco** mejoró significativamente.
+4. Volví a investigar con el desglose de fases de Lighthouse: la fuente ya no es el problema, ahora el retraso está en el "element render delay" (~1.3-1.4s), probablemente CSS/JS propio del sitio (Hallazgo #4, sin resolver por ahora).
+
+No todo fix "obvio" mueve la métrica que uno espera, y seguir investigando en vez de conformarse con el primer número que mejora es justamente el trabajo de QA. Evidencia completa de cada paso en [`reports/root-cause-analysis.md`](reports/root-cause-analysis.md).
 
 ## Stack
 
@@ -58,7 +72,7 @@ tests/
 
 ```bash
 # 1. Clonar y entrar al proyecto
-git clone <este-repo>
+git clone https://github.com/<tu-usuario>/qa-automation-estudioagabriel.git
 cd qa-automation-estudioagabriel
 
 # 2. Crear entorno virtual e instalar dependencias
@@ -107,7 +121,13 @@ Durante el desarrollo encontré que el Chromium que descarga Playwright por defe
 
 ## Sobre este proyecto
 
-Lo armé para mi portfolio como QA/Support Specialist, usando el sitio real del estudio jurídico de mi mamá como caso de estudio. El foco no fue solo "correr Lighthouse una vez", sino construir algo reproducible: tests parametrizados, un test de regresión para el bug encontrado, un hallazgo de infraestructura documentado y trackeado como *known issue*, y un fix real aplicado al código fuente con evidencia de impacto.
+Lo armé para mi portfolio como QA/Support Specialist, usando el sitio real del estudio jurídico de mi mamá como caso de estudio. El foco no fue solo "correr Lighthouse una vez", sino construir algo reproducible: tests parametrizados, un test de regresión para el bug encontrado, un hallazgo de infraestructura documentado y trackeado como *known issue*, y dos fixes reales aplicados al código fuente con evidencia de impacto medida en producción.
+
+## Autor
+
+**Martín Lautaro Sosa Gabriel** — QA / Support Specialist
+
+🔗 [linkedin.com/in/martinlautarososa](https://www.linkedin.com/in/martinlautarososa/)
 
 ---
 
