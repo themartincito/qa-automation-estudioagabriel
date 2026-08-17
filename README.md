@@ -19,7 +19,8 @@ El sitio tardaba en cargar y no había forma sistemática de saber por qué. El 
 |---|---|---|---|
 | 1 | Imagen de 1.92 MB sin optimizar = 84% del peso total de la página | Alto (performance) | ✅ Diagnosticado, fix aplicado y **verificado en producción** |
 | 2 | DNS del dominio falla (SERVFAIL) contra resolvers públicos (Google/Cloudflare) — el sitio es inalcanzable para una porción de usuarios | Crítico (disponibilidad) | 🔴 Detectado y trackeado (requiere acción del proveedor de hosting) |
-| 3 | El LCP real (título del hero) está bloqueado por 2 requests a Google Fonts antes de poder pintar texto | Medio (performance) | 🟡 Detectado durante la verificación del fix #1, documentado como próximo paso |
+| 3 | El LCP real (título del hero) estaba bloqueado por Google Fonts cargado de forma síncrona | Medio (performance) | ✅ Fix aplicado y verificado (render-blocking eliminado; LCP casi no bajó — ver Hallazgo #4) |
+| 4 | Tras eliminar el bloqueo de fuentes, el `<h1>` sigue tardando ~1.3-1.4s en pintar después de tener todo disponible ("element render delay") — probablemente CSS/JS propio del sitio | Medio (performance) | 🟡 Identificado con datos concretos, no investigado en profundidad (fuera de alcance de este ciclo) |
 
 Detalle completo, con evidencia y métricas antes/después medidas contra el sitio real en producción: [`reports/root-cause-analysis.md`](reports/root-cause-analysis.md)
 
@@ -92,6 +93,13 @@ qa-automation-estudioagabriel/
 ├── requirements.txt
 └── package.json
 ```
+
+## Próximos pasos / mejoras futuras
+
+- **Corregir el problema de DNS** (Hallazgo #2) — requiere acción del proveedor de hosting sobre `dns1/2/3.outergate.online`.
+- **Investigar el "element render delay" de ~1.3-1.4s** (Hallazgo #4) — con el bloqueo de fuentes ya eliminado, el `<h1>` del hero sigue tardando ese tiempo en pintar. Candidato principal: el bloque `<style>` inline del sitio, bastante grande. Requiere profiling de CSS/JS en el hilo principal, no solo cambios de carga de recursos.
+- **Self-hosting de Google Fonts** — evaluado conscientemente y descartado *para este ciclo* en favor del patrón preload+swap (menor riesgo, un solo commit reversible). Serviría los `.woff2` desde el propio dominio en vez de depender de `fonts.gstatic.com`, eliminando por completo la dependencia externa. Es la opción de mejor performance posible, pero de mayor esfuerzo — queda como candidato para una próxima iteración una vez validado el impacto del fix actual.
+- Corregir la codificación de caracteres del HTML (artefactos tipo `Ã­`, `â€“` detectados en el texto).
 
 ## Nota sobre el entorno de testing
 

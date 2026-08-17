@@ -117,7 +117,45 @@ El navegador no puede pintar el texto del `<h1>` hasta:
 
 Son 2 round-trips a dominios de terceros antes de poder mostrar el título principal — esto explica el FCP/LCP de ~2.2-2.5s pese a que el servidor responde en 230ms.
 
-**No se aplicó fix para este hallazgo en este ciclo** (requiere decidir estrategia: `font-display: swap`, `<link rel="preconnect">` a los dominios de Google Fonts, o self-hosting de las fuentes). Queda documentado como próximo paso.
+### Fix aplicado (17/08/2026)
+
+Al revisar el `<head>` de `preview/index.html` se confirmó que el sitio **ya tenía** `<link rel="preconnect">` a ambos dominios de Google Fonts y `&display=swap` en la URL — esas dos mitigaciones "gratis" ya estaban puestas. El motivo real por el que Lighthouse seguía marcando el recurso como render-blocking es que la hoja de estilos de Google Fonts se cargaba con un `<link rel="stylesheet">` **síncrono**, que bloquea el primer render sin importar `preconnect`/`display=swap`.
+
+**Se implementó el patrón "preload + swap async"** (técnica estándar recomendada por web.dev), que carga el CSS sin bloquear el render y lo activa apenas termina de descargar:
+
+```html
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?...">
+<link href="https://fonts.googleapis.com/css2?..." rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?..." rel="stylesheet"></noscript>
+```
+
+Se mantuvo el `<noscript>` como fallback para navegadores/crawlers con JavaScript deshabilitado.
+
+**Verificado en producción (17/08/2026):**
+
+| Métrica | Antes del fix de fuentes | Después | Cambio |
+|---|---|---|---|
+| Render-blocking resources (desktop) | 1 (Google Fonts) | **0** | ✅ eliminado |
+| Render-blocking resources (mobile) | 1 (Google Fonts) | **0** | ✅ eliminado |
+| LCP (desktop) | 2.5s | 2.4s | marginal |
+| LCP (mobile) | 5.2s | 5.2s | sin cambio |
+
+El fix cumplió su objetivo técnico exacto (sacar la hoja de estilos de Google Fonts del camino crítico de render), pero el LCP casi no bajó. Investigando con el audit `lcp-phases-insight` de Lighthouse:
+
+| Fase (desktop) | Duración |
+|---|---|
+| Time to First Byte | ~688 ms |
+| Element render delay | ~1,390 ms |
+
+El `font-display-insight` confirma que la fuente **ya no es el problema** ("notApplicable" — sin issues). El "element render delay" de ~1.3-1.4s (consistente en desktop y mobile) ocurre *después* de que el byte y la fuente están disponibles, antes de que el `<h1>` pinte — apunta a trabajo de CSS/JS en el hilo principal, no a recursos externos. El sitio tiene un bloque `<style>` inline considerablemente grande.
+
+**No se investigó ni aplicó fix para esto en este ciclo:** tocar el CSS/JS propio del sitio es una superficie de cambio bastante mayor (y más riesgosa en un sitio de producción real) que un ajuste de carga de un recurso externo. Queda documentado como Hallazgo #4 candidato para una próxima iteración, con la métrica exacta a mejorar (element render delay) ya identificada.
+
+### Alternativa evaluada y descartada conscientemente: self-hosting de fuentes
+
+Self-hostear los archivos `.woff2` de Cormorant Garamond y Montserrat (servirlos desde el propio dominio en vez de `fonts.gstatic.com`) eliminaría por completo la dependencia de terceros y sería la opción de mejor performance posible — pero implica más trabajo (descargar los archivos de fuente, definir `@font-face` propio, mantenerlos actualizados) y mayor superficie de cambio en un sitio de producción real.
+
+Se optó por el patrón preload+swap para este ciclo por ser de **menor riesgo y reversible con un solo commit**, ideal para un primer fix medible. Self-hosting queda como mejora futura documentada, no descartada por falta de valor sino por criterio de costo/riesgo para esta iteración.
 
 ---
 
