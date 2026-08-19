@@ -8,14 +8,14 @@
 
 El sitio presentaba dos problemas independientes:
 
-1. **Crítico — Disponibilidad:** ambos dominios fallan al resolver DNS cuando el visitante usa un resolver público (Google 8.8.8.8, Cloudflare 1.1.1.1). Es un problema de infraestructura, no de código.
-2. **Performance:** una sola imagen sin optimizar (`abogada.png`, 1.92 MB) representaba el 84% del peso total de la página, causando tiempos de carga lentos, especialmente en mobile/redes lentas.
+1. **Crítico — Disponibilidad:** ambos dominios fallaban al resolver DNS cuando el visitante usaba un resolver público (Google 8.8.8.8, Cloudflare 1.1.1.1). Era un problema de infraestructura, no de código. **Resuelto el 17/08/2026** (ver actualización más abajo).
+2. **Performance:** una sola imagen sin optimizar (`abogada.png`, 1.92 MB) representaba el 84% del peso total de la página, causando tiempos de carga lentos, especialmente en mobile/redes lentas. **Resuelto y verificado en producción.**
 
-El punto 2 se diagnosticó, se optimizó y el fix quedó preparado (ver sección "Fix aplicado"). El punto 1 requiere acción del proveedor de hosting/dominio.
+Ambos puntos quedaron cerrados con evidencia. El detalle de cada uno, incluyendo un tercer y cuarto hallazgo encontrados durante la verificación del fix de performance, está más abajo.
 
 ---
 
-## Hallazgo 1 (crítico): DNS SERVFAIL en resolvers públicos
+## Hallazgo 1 (crítico, resuelto): DNS SERVFAIL en resolvers públicos
 
 **Evidencia:**
 
@@ -31,9 +31,20 @@ Resolve-DnsName estudioagabriel.ar -Server 8.8.8.8        -> sin respuesta (SERV
 
 **Impacto:** cualquier visitante cuyo dispositivo o red use DNS público (Google DNS, Cloudflare DNS, DNS privado de Android, muchas VPNs corporativas y redes wifi de oficina) **no puede llegar al sitio en absoluto** — no es lentitud, es una falla total de resolución. Esto probablemente explica reportes de "el sitio no carga" que no están relacionados con el peso de la página.
 
-**Automatizado como:** [`tests/test_dns_resolution.py`](../tests/test_dns_resolution.py) — corre como `xfail` (fallo esperado y trackeado) hasta que el proveedor de hosting corrija los nameservers. Cuando se corrija, el test pasa a XPASS automáticamente, señal de que se puede sacar el marcador de "known issue".
+**Automatizado como:** [`tests/test_dns_resolution.py`](../tests/test_dns_resolution.py) — corría como `xfail` (fallo esperado y trackeado) hasta que se corrigiera la configuración de DNS. El marcador cumplió su función exacta: al resolverse el problema, el test pasó a `XPASS` sin cambiar una línea, señal objetiva de que el "known issue" se podía cerrar.
 
-**Acción requerida:** contactar al proveedor de hosting/dominio para corregir la configuración de `dns1/2/3.outergate.online`. Esto está fuera del alcance de este proyecto de QA (no es algo que se arregle subiendo archivos al sitio).
+### Resolución (17/08/2026)
+
+El propietario del sitio gestionó el cambio de configuración de DNS directamente en el registrador del dominio (nic.ar), reemplazando los nameservers problemáticos. Verificación posterior:
+
+```
+Resolve-DnsName estudioagabriel.com.ar -Server 8.8.8.8   -> 162.241.60.39 (OK)
+Resolve-DnsName estudioagabriel.com.ar -Server 1.1.1.1   -> 162.241.60.39 (OK)
+Resolve-DnsName estudioagabriel.ar     -Server 8.8.8.8   -> 162.241.60.39 (OK)
+Resolve-DnsName estudioagabriel.ar     -Server 1.1.1.1   -> 162.241.60.39 (OK)
+```
+
+Confirmado además con caché DNS local vaciada (`ipconfig /flushdns`) antes de repetir la consulta, para descartar una respuesta cacheada. Los 4 tests de `test_dns_resolution.py` (2 dominios × 2 resolvers) pasaron de `XFAIL` a `XPASS`.
 
 ---
 
