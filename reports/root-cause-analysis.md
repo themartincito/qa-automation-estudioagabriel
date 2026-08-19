@@ -35,7 +35,7 @@ Resolve-DnsName estudioagabriel.ar -Server 8.8.8.8        -> sin respuesta (SERV
 
 ### Resolución (17/08/2026)
 
-El propietario del sitio gestionó el cambio de configuración de DNS directamente en el registrador del dominio (nic.ar), reemplazando los nameservers problemáticos. Verificación posterior:
+El propietario del sitio migró la gestión de DNS a **Cloudflare**: creó una cuenta, dio de alta el dominio ahí, y luego cambió los nameservers en el registrador (nic.ar) para que apunten a los de Cloudflare en lugar de los de `outergate.online`. Al ser Cloudflare quien responde las consultas DNS ahora, el dominio resuelve correctamente contra cualquier resolver público. Verificación posterior:
 
 ```
 Resolve-DnsName estudioagabriel.com.ar -Server 8.8.8.8   -> 162.241.60.39 (OK)
